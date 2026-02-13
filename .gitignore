@@ -48,7 +48,8 @@ htmlcov/
 .tox/
 
 # HACS
-hacs.json
+# hacs.json must be in root of repo for HACS validation
+# hacs.json is intentionally tracked
 
 # Deprecated planning docs
 deprecated_planning/

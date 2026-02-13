@@ -7,14 +7,18 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: hacs/action@main
         with:
           category: integration
       - run: |
-          cd custom_components/mcp_client
-          zip -r ../../mcp_client.zip .
+          cd custom_components
+          zip -r ../mcp_client.zip mcp_client
       - uses: softprops/action-attach-release-asset@v1
         with:
           files: mcp_client.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
