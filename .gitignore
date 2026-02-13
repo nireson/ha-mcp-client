@@ -50,5 +50,8 @@ htmlcov/
 # HACS
 hacs.json
 
+# Deprecated planning docs
+deprecated_planning/
+
 # Logs
 *.log
