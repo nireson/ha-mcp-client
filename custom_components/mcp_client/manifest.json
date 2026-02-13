@@ -1,0 +1,13 @@
+{
+  "domain": "mcp_client",
+  "name": "MCP Client (Docker Gateway)",
+  "codeowners": ["@nelson"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/nelson/ha-mcp",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/nelson/ha-mcp/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
