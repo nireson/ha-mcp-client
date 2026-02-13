@@ -12,8 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          cd custom_components
-          zip -r ../mcp_client.zip mcp_client
+          cd custom_components/mcp_client
+          zip -r ../../mcp_client.zip .
       - uses: softprops/action-gh-release@v2
         with:
           files: mcp_client.zip

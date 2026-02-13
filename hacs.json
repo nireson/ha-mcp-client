@@ -4,6 +4,6 @@
   "homeassistant": "2025.1.0",
   "render_readme": true,
   "zip_release": true,
-  "content_in_root": false,
+  "content_in_root": true,
   "filename": "mcp_client.zip"
 }
