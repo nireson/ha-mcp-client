@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
-from .const import CONF_ALLOWED_TOOLS, DOMAIN
+from .const import CONF_ALLOWED_TOOLS, CONF_AUTH_TOKEN, CONF_GATEWAY_URL, DOMAIN
 from .transport import StreamableHTTPTransport
 
 _LOGGER = logging.getLogger(__name__)
