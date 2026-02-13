@@ -11,9 +11,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: hacs/action@main
-        with:
-          category: integration
       - run: |
           cd custom_components
           zip -r ../mcp_client.zip mcp_client
