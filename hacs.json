@@ -1,7 +1,9 @@
 {
   "name": "MCP Client (Docker Gateway)",
-  "content_in_root": false,
-  "filename": "mcp_client.zip",
+  "hacs": "2.0.0",
+  "homeassistant": "2025.1.0",
+  "render_readme": true,
   "zip_release": true,
-  "render_readme": true
+  "content_in_root": false,
+  "filename": "mcp_client.zip"
 }

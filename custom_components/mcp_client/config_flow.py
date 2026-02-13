@@ -31,7 +31,7 @@ from .transport import StreamableHTTPTransport
 _LOGGER = logging.getLogger(__name__)
 
 
-class MCPClientConfigFlow(ConfigFlow):
+class MCPClientConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle config flow for MCP Client."""
 
     VERSION = 1
