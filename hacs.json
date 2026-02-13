@@ -1,0 +1,7 @@
+{
+  "name": "MCP Client (Docker Gateway)",
+  "content_in_root": false,
+  "filename": "mcp_client.zip",
+  "zip_release": true,
+  "render_readme": true
+}
