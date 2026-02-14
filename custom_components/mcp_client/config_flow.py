@@ -15,6 +15,12 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.core import callback
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .const import (
     CONF_ALLOWED_TOOLS,
@@ -29,6 +35,19 @@ from .const import (
 from .transport import StreamableHTTPTransport
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _tools_selector(tool_names: list[str]) -> SelectSelector:
+    """Build a multi-select selector for MCP tools."""
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=[
+                SelectOptionDict(value=name, label=name) for name in tool_names
+            ],
+            multiple=True,
+            mode=SelectSelectorMode.LIST,
+        )
+    )
 
 
 class MCPClientConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -113,19 +132,14 @@ class MCPClientConfigFlow(ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        tool_options = {tool: tool for tool in self._discovered_tools}
-
         return self.async_show_form(
             step_id="tools",
             data_schema=vol.Schema(
                 {
                     vol.Optional(
                         CONF_ALLOWED_TOOLS,
-                        default=self._discovered_tools,
-                    ): vol.All(
-                        vol.Coerce(list),
-                        [vol.In(tool_options)],
-                    ),
+                        default=list(self._discovered_tools),
+                    ): _tools_selector(self._discovered_tools),
                 }
             ),
         )
@@ -151,7 +165,6 @@ class MCPClientOptionsFlow(OptionsFlow):
 
         coordinator = self.config_entry.runtime_data
         current_tools = [t["name"] for t in coordinator.tools] if coordinator else []
-        tool_options = {tool: tool for tool in current_tools}
 
         return self.async_show_form(
             step_id="init",
@@ -162,10 +175,7 @@ class MCPClientOptionsFlow(OptionsFlow):
                         default=self.config_entry.options.get(
                             CONF_ALLOWED_TOOLS, current_tools
                         ),
-                    ): vol.All(
-                        vol.Coerce(list),
-                        [vol.In(tool_options)],
-                    ),
+                    ): _tools_selector(current_tools),
                     vol.Optional(
                         CONF_TIMEOUT_CONNECTION,
                         default=self.config_entry.options.get(
