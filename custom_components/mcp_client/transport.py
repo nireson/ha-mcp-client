@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 import logging
-from typing import Any
 
 import aiohttp
 
@@ -30,14 +28,12 @@ class StreamableHTTPTransport:
             await self._session.close()
             self._session = None
 
-    async def _request(
-        self, method: str, endpoint: str, payload: dict | None = None
-    ) -> dict:
+    async def _request(self, payload: dict) -> dict:
         """Make a request to the gateway."""
         if not self._session:
             raise RuntimeError("Not connected")
 
-        url = f"{self._url}/{endpoint}"
+        url = self._url
         headers = {"Content-Type": "application/json"}
         if self._auth_token:
             headers["Authorization"] = f"Bearer {self._auth_token}"
@@ -51,15 +47,13 @@ class StreamableHTTPTransport:
     async def list_tools(self) -> list[dict]:
         """List available tools from the gateway."""
         result = await self._request(
-            "POST", "mcp", {"jsonrpc": "2.0", "method": "tools/list", "id": 1}
+            {"jsonrpc": "2.0", "method": "tools/list", "id": 1}
         )
         return result.get("result", {}).get("tools", [])
 
     async def call_tool(self, name: str, arguments: dict) -> dict:
         """Call an MCP tool."""
         result = await self._request(
-            "POST",
-            "mcp",
             {
                 "jsonrpc": "2.0",
                 "method": "tools/call",
