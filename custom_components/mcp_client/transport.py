@@ -8,6 +8,8 @@ import logging
 
 import aiohttp
 
+from .const import MCP_CLIENT_VERSION, MCP_PROTOCOL_VERSION
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -46,11 +48,11 @@ class StreamableHTTPTransport:
                 "jsonrpc": "2.0",
                 "method": "initialize",
                 "params": {
-                    "protocolVersion": "2024-11-05",
+                    "protocolVersion": MCP_PROTOCOL_VERSION,
                     "capabilities": {},
                     "clientInfo": {
                         "name": "ha-mcp-client",
-                        "version": "1.0.0",
+                        "version": MCP_CLIENT_VERSION,
                     },
                 },
                 "id": next(self._id_counter),
@@ -126,10 +128,20 @@ class StreamableHTTPTransport:
                 data_lines.append(decoded[6:])
             elif not decoded and data_lines:
                 # Empty line signals end of an SSE event
-                return json.loads("\n".join(data_lines))
+                try:
+                    return json.loads("\n".join(data_lines))
+                except json.JSONDecodeError as err:
+                    raise MCPTransportError(
+                        f"Invalid JSON in SSE data: {err}"
+                    ) from err
         # Stream ended — flush any remaining buffered data lines
         if data_lines:
-            return json.loads("\n".join(data_lines))
+            try:
+                return json.loads("\n".join(data_lines))
+            except json.JSONDecodeError as err:
+                raise MCPTransportError(
+                    f"Invalid JSON in SSE data: {err}"
+                ) from err
         raise MCPTransportError("SSE stream ended without any data")
 
     async def _request(

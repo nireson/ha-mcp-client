@@ -6,6 +6,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import llm
 
 from .const import DOMAIN
@@ -25,7 +26,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: MCPClientConfigEntry) ->
 
     entry.runtime_data = coordinator
 
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except ConfigEntryNotReady:
+        await coordinator.async_disconnect()
+        raise
 
     api = MCPToolsAPI(hass, entry, coordinator)
     unreg = llm.async_register_api(hass, api)

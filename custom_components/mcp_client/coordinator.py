@@ -36,7 +36,6 @@ class MCPGatewayCoordinator(DataUpdateCoordinator[None]):
             name=f"{DOMAIN}-{entry.entry_id}",
             update_interval=timedelta(minutes=5),
         )
-        self._hass = hass
         self._entry = entry
         self._transport: StreamableHTTPTransport | None = None
         self._tools: list[dict] = []
@@ -45,7 +44,7 @@ class MCPGatewayCoordinator(DataUpdateCoordinator[None]):
 
     async def async_setup(self) -> None:
         """Set up the coordinator and connect to the gateway."""
-        session = async_get_clientsession(self._hass)
+        session = async_get_clientsession(self.hass)
         self._transport = StreamableHTTPTransport(
             url=self._gateway_url,
             auth_token=self._auth_token or None,

@@ -36,6 +36,9 @@ env/
 *.swo
 *~
 
+# Claude MCP
+.claude/
+
 # Home Assistant
 .DS_Store
 .configuration.yaml
