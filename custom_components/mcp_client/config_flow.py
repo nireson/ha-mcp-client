@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 import aiohttp
 import voluptuous as vol
@@ -68,17 +69,26 @@ class MCPClientConfigFlow(ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            self._gateway_url = user_input[CONF_GATEWAY_URL].rstrip("/")
+            raw_url = user_input[CONF_GATEWAY_URL].rstrip("/")
+            parsed = urlparse(raw_url)
+            self._gateway_url = urlunparse(
+                parsed._replace(
+                    scheme=parsed.scheme.lower(),
+                    netloc=parsed.netloc.lower(),
+                )
+            )
             self._auth_token = user_input.get(CONF_AUTH_TOKEN, "")
 
+            await self.async_set_unique_id(self._gateway_url)
+            self._abort_if_unique_id_configured()
+
+            transport = StreamableHTTPTransport(
+                url=self._gateway_url,
+                auth_token=self._auth_token or None,
+            )
             try:
-                transport = StreamableHTTPTransport(
-                    url=self._gateway_url,
-                    auth_token=self._auth_token or None,
-                )
                 await transport.connect()
                 tools = await transport.list_tools()
-                await transport.disconnect()
 
                 self._discovered_tools = [t["name"] for t in tools]
 
@@ -97,6 +107,8 @@ class MCPClientConfigFlow(ConfigFlow, domain=DOMAIN):
             except Exception:
                 _LOGGER.exception("Unexpected error during MCP connection")
                 errors["base"] = "unknown"
+            finally:
+                await transport.disconnect()
 
         return self.async_show_form(
             step_id="user",
@@ -115,9 +127,6 @@ class MCPClientConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle tool selection step."""
         if user_input is not None:
             selected_tools = user_input.get(CONF_ALLOWED_TOOLS, [])
-
-            await self.async_set_unique_id(self._gateway_url)
-            self._abort_if_unique_id_configured()
 
             return self.async_create_entry(
                 title=f"MCP Gateway ({self._gateway_url})",

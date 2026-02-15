@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import json
 import logging
 
@@ -9,29 +10,35 @@ import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
-_REQUEST_ID_COUNTER = 0
 
-
-def _next_id() -> int:
-    """Return a unique JSON-RPC request id."""
-    global _REQUEST_ID_COUNTER
-    _REQUEST_ID_COUNTER += 1
-    return _REQUEST_ID_COUNTER
+class MCPTransportError(Exception):
+    """Error raised when the MCP transport encounters a protocol-level failure."""
 
 
 class StreamableHTTPTransport:
     """Transport layer for MCP Gateway using Streamable HTTP."""
 
-    def __init__(self, url: str, auth_token: str | None = None) -> None:
+    def __init__(
+        self,
+        url: str,
+        auth_token: str | None = None,
+        timeout_connection: int = 30,
+        timeout_execution: int = 60,
+        session: aiohttp.ClientSession | None = None,
+    ) -> None:
         """Initialize transport."""
         self._url = url.rstrip("/")
         self._auth_token = auth_token
+        self._timeout_connection = timeout_connection
+        self._timeout_execution = timeout_execution
+        self._external_session = session
         self._session: aiohttp.ClientSession | None = None
         self._session_id: str | None = None
+        self._id_counter = itertools.count(1)
 
     async def connect(self) -> None:
         """Connect to the gateway and initialize the MCP session."""
-        self._session = aiohttp.ClientSession()
+        self._session = self._external_session or aiohttp.ClientSession()
 
         # Step 1: Send initialize request
         result, headers = await self._raw_request(
@@ -46,7 +53,7 @@ class StreamableHTTPTransport:
                         "version": "1.0.0",
                     },
                 },
-                "id": _next_id(),
+                "id": next(self._id_counter),
             }
         )
 
@@ -61,9 +68,9 @@ class StreamableHTTPTransport:
 
     async def disconnect(self) -> None:
         """Disconnect from the gateway."""
-        if self._session and not self._session.closed:
+        if self._session and not self._session.closed and not self._external_session:
             await self._session.close()
-            self._session = None
+        self._session = None
         self._session_id = None
 
     def _build_headers(self) -> dict[str, str]:
@@ -79,13 +86,18 @@ class StreamableHTTPTransport:
         return headers
 
     async def _raw_request(
-        self, payload: dict, *, expect_response: bool = True
+        self,
+        payload: dict,
+        *,
+        expect_response: bool = True,
+        timeout_override: int | None = None,
     ) -> tuple[dict, dict]:
         """Make a request and parse SSE response."""
         if not self._session:
             raise RuntimeError("Not connected")
 
-        timeout = aiohttp.ClientTimeout(total=30)
+        total = timeout_override or self._timeout_connection
+        timeout = aiohttp.ClientTimeout(total=total)
         async with self._session.post(
             self._url,
             json=payload,
@@ -106,22 +118,38 @@ class StreamableHTTPTransport:
 
     @staticmethod
     async def _parse_sse(response: aiohttp.ClientResponse) -> dict:
-        """Parse a Server-Sent Events response, returning the first message data."""
+        """Parse a Server-Sent Events response, returning the first event's data."""
+        data_lines: list[str] = []
         async for line in response.content:
             decoded = line.decode("utf-8").strip()
             if decoded.startswith("data: "):
-                return json.loads(decoded[6:])
-        return {}
+                data_lines.append(decoded[6:])
+            elif not decoded and data_lines:
+                # Empty line signals end of an SSE event
+                return json.loads("\n".join(data_lines))
+        # Stream ended — flush any remaining buffered data lines
+        if data_lines:
+            return json.loads("\n".join(data_lines))
+        raise MCPTransportError("SSE stream ended without any data")
 
-    async def _request(self, payload: dict) -> dict:
+    async def _request(
+        self, payload: dict, *, timeout_override: int | None = None
+    ) -> dict:
         """Make a request to the gateway and return the result."""
-        result, _ = await self._raw_request(payload)
+        result, _ = await self._raw_request(
+            payload, timeout_override=timeout_override
+        )
+        if "error" in result:
+            err = result["error"]
+            raise MCPTransportError(
+                f"JSON-RPC error {err.get('code')}: {err.get('message')}"
+            )
         return result
 
     async def list_tools(self) -> list[dict]:
         """List available tools from the gateway."""
         result = await self._request(
-            {"jsonrpc": "2.0", "method": "tools/list", "id": _next_id()}
+            {"jsonrpc": "2.0", "method": "tools/list", "id": next(self._id_counter)}
         )
         return result.get("result", {}).get("tools", [])
 
@@ -132,7 +160,8 @@ class StreamableHTTPTransport:
                 "jsonrpc": "2.0",
                 "method": "tools/call",
                 "params": {"name": name, "arguments": arguments},
-                "id": _next_id(),
+                "id": next(self._id_counter),
             },
+            timeout_override=self._timeout_execution,
         )
         return result.get("result", {})

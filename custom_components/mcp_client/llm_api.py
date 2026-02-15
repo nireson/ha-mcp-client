@@ -121,6 +121,8 @@ class MCPTool(llm.Tool):
                 "integer": int,
                 "number": float,
                 "boolean": bool,
+                "array": list,
+                "object": dict,
             }.get(prop_def.get("type", "string"), str)
 
             if prop_name in required:
